@@ -180,7 +180,12 @@ vector<char> mlfq(int queue_count, list<process> processes) {
 
 	  if (dp.p.service_time != 0) {
 		if (dp.depth + 1 < queue_count && (processes.front().arrival_time == (tick + 1) ||
-			any_of(queue.begin(), queue.end(), [dp](depth_process p) { return p.depth >= dp.depth; })
+			[](int depth, list<depth_process> queue) -> bool {
+			  for (depth_process &p : queue) {
+				if (p.depth >= depth) return true;
+			  }
+			  return false;
+			}(dp.depth, queue)
 		)) {
 		  dp.depth += 1;
 		}
@@ -228,7 +233,12 @@ vector<char> mlfq_squared(int queue_count, list<process> processes) {
 
 	  if (dp.p.service_time != 0 && q_count == 0) {
 		if (dp.depth + 1 < queue_count && (processes.front().arrival_time <= (tick + 1)
-			|| any_of(queue.begin(), queue.end(), [dp](depth_process p) { return p.depth >= dp.depth; }))) {
+			|| [](int depth, list<depth_process> queue) -> bool {
+			  for (depth_process &p : queue) {
+				if (p.depth >= depth) return true;
+			  }
+			  return false;
+			}(dp.depth, queue))) {
 		  dp.depth += 1;
 		}
 		queue.push_back(dp);
