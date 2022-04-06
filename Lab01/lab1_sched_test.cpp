@@ -131,6 +131,55 @@ int test() {
 	  show(scheduler, rr(q, processes));
 	  break;
 	}
+	case 3: {
+	  show("SPN", spn(processes));
+	  break;
+	}
+	case 4: {
+	  show("HRRN", hrrn(processes));
+	  break;
+	}
+	case 5: {
+	  int q;
+	  cout << "queue_level > ";
+	  cin >> q;
+	  system("clear");
+
+	  string scheduler = "MLFQ";
+	  scheduler.append("(q = 1, queue_level = ");
+	  scheduler.append(to_string(q));
+	  scheduler.append(")");
+
+	  show(scheduler, mlfq(q, processes));
+	  break;
+	}
+	case 6: {
+	  int q;
+	  cout << "queue_level > ";
+	  cin >> q;
+	  system("clear");
+
+	  string scheduler = "MLFQ";
+	  scheduler.append("(q = 2^i, queue_level = ");
+	  scheduler.append(to_string(q));
+	  scheduler.append(")");
+
+	  show(scheduler, mlfq_squared(q, processes));
+	  break;
+	}
+	case 7: {
+	  list<tickets> ticket_list = list<tickets>();
+	  for (process p : processes) {
+		tickets t;
+		t.p = p;
+		cout << "tickets" << "(" << p.name << ") > ";
+		cin >> t.ticket;
+		ticket_list.push_back(t);
+	  }
+
+	  show("Lottery", lottery(ticket_list));
+	  break;
+	}
 	default: {
 	  cout << "Invalid input" << endl;
 	  return -1;
@@ -232,6 +281,7 @@ int get_scheduling_policy() {
   cout << "4. HRRN" << endl;
   cout << "5. MLFQ (q=1)" << endl;
   cout << "6. MLFQ (q=2^i)" << endl;
+  cout << "7. Lottery" << endl;
   cout << "----------------------------" << endl;
   cout << "> ";
   cin >> input;
