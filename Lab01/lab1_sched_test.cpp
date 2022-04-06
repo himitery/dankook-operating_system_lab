@@ -22,6 +22,7 @@ void test_spn(const list<process> &);
 void test_hrrn(const list<process> &);
 void test_mlfq(const list<process> &);
 void test_mlfq_squared(const list<process> &);
+void test_lottery(const list<tickets> &);
 
 // utils
 int get_scheduling_policy();
@@ -32,14 +33,30 @@ int main() {
   system("clear");
 
   list<process> processes = list<process>();
-  int arrival_time_arr[] = {0, 2, 4, 6, 8};
-  int service_time_arr[] = {3, 6, 4, 5, 2};
+  int p_arrival_time_arr[] = {0, 2, 4, 6, 8};
+  int p_service_time_arr[] = {3, 6, 4, 5, 2};
   for (int i = 0; i < 5; i++) {
 	process p;
 	p.name = char(int('A') + i);
-	p.arrival_time = arrival_time_arr[i];
-	p.service_time = service_time_arr[i];
+	p.arrival_time = p_arrival_time_arr[i];
+	p.service_time = p_service_time_arr[i];
 	processes.push_back(p);
+  }
+
+  list<tickets> ticket_list = list<tickets>();
+  int t_arrival_time_arr[] = {0, 0, 0};
+  int t_service_time_arr[] = {3, 6, 4};
+  int t_ticket[] = {100, 50, 250};
+  for (int i = 0; i < 3; i++) {
+	process p;
+	p.name = char(int('A') + i);
+	p.arrival_time = t_arrival_time_arr[i];
+	p.service_time = t_service_time_arr[i];
+
+	tickets t;
+	t.p = p;
+	t.ticket = t_ticket[i];
+	ticket_list.push_back(t);
   }
 
   cout << "Default Processes" << endl;
@@ -56,6 +73,16 @@ int main() {
   test_hrrn(processes);
   test_mlfq(processes);
   test_mlfq_squared(processes);
+
+  cout << "Default Tickets" << endl;
+  cout << "------------------------------------" << endl;
+  for (tickets t : ticket_list) {
+	cout << t.p.name << " (" << "arrival_time: " << t.p.arrival_time << ", service_time: " << t.p.service_time
+		 << ", tickets: " << t.ticket << ")" << endl;
+  }
+  cout << "------------------------------------\n" << endl;
+
+  test_lottery(ticket_list);
 
   cout << "Would you like to run a new test?" << " (o | x) > ";
   char answer;
@@ -188,6 +215,10 @@ void test_mlfq_squared(const list<process> &processes) {
 
   show("MLFQ (q=2^i)", expect);
   assert(equal(expect, result));
+}
+
+void test_lottery(const list<tickets> &processes) {
+  show("Lottery", lottery(processes));
 }
 
 int get_scheduling_policy() {

@@ -19,7 +19,7 @@ vector<char> fcfs(list<process> processes) {
 
   int tick = 0;
   while (!queue.empty() || !processes.empty()) {
-	while (processes.front().arrival_time == tick) {
+	while (!processes.empty() && processes.front().arrival_time == tick) {
 	  queue.push_back(processes.front());
 	  processes.pop_front();
 	}
@@ -41,7 +41,7 @@ vector<char> rr(int q, list<process> processes) {
   list<process> queue = list<process>();
   vector<char> result = vector<char>();
 
-  while (processes.front().arrival_time == 0) {
+  while (!processes.empty() && processes.front().arrival_time == 0) {
 	queue.push_back(processes.front());
 	processes.pop_front();
   }
@@ -53,7 +53,7 @@ vector<char> rr(int q, list<process> processes) {
 	  queue.front().service_time -= 1;
 	  q_count++;
 
-	  while (processes.front().arrival_time == (tick + 1)) {
+	  while (!processes.empty() && processes.front().arrival_time == (tick + 1)) {
 		queue.push_back(processes.front());
 		processes.pop_front();
 	  }
@@ -81,7 +81,7 @@ vector<char> spn(list<process> processes) {
 
   int tick = 0;
   while (!queue.empty() || !processes.empty()) {
-	while (processes.front().arrival_time == tick) {
+	while (!processes.empty() && processes.front().arrival_time == tick) {
 	  queue.push_back(processes.front());
 	  processes.pop_front();
 	}
@@ -116,7 +116,7 @@ vector<char> hrrn(list<process> processes) {
 
   int tick = 0;
   while (!queue.empty() || !processes.empty()) {
-	while (processes.front().arrival_time == tick) {
+	while (!processes.empty() && processes.front().arrival_time == tick) {
 	  wait_process wp;
 	  wp.p = processes.front();
 	  wp.wait = 0;
@@ -160,7 +160,7 @@ vector<char> mlfq(int queue_count, list<process> processes) {
 
   int tick = 0;
   while (!queue.empty() || !processes.empty()) {
-	while (processes.front().arrival_time == tick) {
+	while (!processes.empty() && processes.front().arrival_time == tick) {
 	  depth_process wp;
 	  wp.p = processes.front();
 	  wp.depth = 0;
@@ -210,7 +210,7 @@ vector<char> mlfq_squared(int queue_count, list<process> processes) {
 
   int tick = 0, q_count = 0;
   while (!queue.empty() || !processes.empty()) {
-	while (processes.front().arrival_time == tick) {
+	while (!processes.empty() && processes.front().arrival_time == tick) {
 	  depth_process wp;
 	  wp.p = processes.front();
 	  wp.depth = 0;
@@ -247,6 +247,60 @@ vector<char> mlfq_squared(int queue_count, list<process> processes) {
 	  } else {
 		q_count = 0;
 	  }
+	} else {
+	  result.push_back('\0');
+	}
+	tick++;
+  }
+
+  return result;
+}
+
+vector<char> lottery(list<tickets> processes) {
+  list<tickets> queue = list<tickets>();
+  vector<char> result = vector<char>();
+
+  int tick = 0;
+  while (!queue.empty() || !processes.empty()) {
+	while (!processes.empty() && processes.front().p.arrival_time == tick) {
+	  queue.push_back(processes.front());
+	  processes.pop_front();
+	}
+
+	if (!queue.empty()) {
+	  int total = [](const list<tickets> &queue) -> int {
+		int result = 0;
+		for (tickets t : queue) {
+		  result += t.ticket;
+		}
+		return result;
+	  }(queue);
+
+	  random_device rd;
+	  mt19937 gen(rd());
+	  uniform_int_distribution<int> dis(0, total - 1);
+
+	  int random_num = dis(gen);
+	  int value = 0;
+
+	  tickets target;
+	  for (tickets t : queue) {
+		value += t.ticket;
+		if (value > random_num) {
+		  target = t;
+		  break;
+		};
+	  }
+
+	  target.p.service_time -= 1;
+	  result.push_back(target.p.name);
+
+	  list<tickets> new_queue = list<tickets>();
+	  for (tickets t : queue) {
+		if (t.p.name != target.p.name) new_queue.push_back(t);
+	  }
+	  if (target.p.service_time != 0) new_queue.push_back(target);
+	  queue = new_queue;
 	} else {
 	  result.push_back('\0');
 	}
