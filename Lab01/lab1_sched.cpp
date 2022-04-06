@@ -41,12 +41,14 @@ vector<char> rr(int q, list<process> processes) {
   list<process> queue = list<process>();
   vector<char> result = vector<char>();
 
-  while (!processes.empty() && processes.front().arrival_time == 0) {
+  int tick = processes.front().arrival_time, q_count = 0;
+  for (int i = 0; i < tick; i++) {
+	result.push_back('\0');
+  }
+  while (!processes.empty() && processes.front().arrival_time == tick) {
 	queue.push_back(processes.front());
 	processes.pop_front();
   }
-
-  int tick = 0, q_count = 0;
   while (!queue.empty() || !processes.empty()) {
 	if (!queue.empty()) {
 	  result.push_back(queue.front().name);
