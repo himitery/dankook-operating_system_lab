@@ -79,9 +79,17 @@ vector<char> spn(list<process> processes) {
   list<process> queue = list<process>();
   vector<char> result = vector<char>();
 
+  while (!processes.empty() && processes.front().arrival_time == 0) {
+	queue.push_back(processes.front());
+	processes.pop_front();
+  }
+  queue.sort([](process prev, process next) -> bool {
+	return prev.service_time < next.service_time;
+  });
+
   int tick = 0;
   while (!queue.empty() || !processes.empty()) {
-	while (!processes.empty() && processes.front().arrival_time == tick) {
+	while (tick != 0 && !processes.empty() && processes.front().arrival_time == tick) {
 	  queue.push_back(processes.front());
 	  processes.pop_front();
 	}
