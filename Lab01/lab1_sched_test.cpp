@@ -44,8 +44,8 @@ int main() {
   }
 
   list<tickets> ticket_list = list<tickets>();
-  int t_arrival_time_arr[] = {0, 0, 0};
-  int t_service_time_arr[] = {3, 6, 4};
+  int t_arrival_time_arr[] = {0, 1, 2};
+  int t_service_time_arr[] = {15, 30, 20};
   int t_ticket[] = {100, 50, 250};
   for (int i = 0; i < 3; i++) {
 	process p;
@@ -341,4 +341,5 @@ void show(const string &scheduler, const vector<char> &result) {
   }
 
   for (int i = 0; i < result.size() + 3; i++) cout << ((i == result.size() + 2) ? "-\n\n" : "-");
+  for (int i = 0; i < result.size(); i++) cout << result[i] << " -> ";
 }
