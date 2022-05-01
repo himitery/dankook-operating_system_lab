@@ -23,16 +23,24 @@
 #include <sys/stat.h>
 #include <assert.h>
 #include <pthread.h>
-//#include <asm/unistd.h>
 
 #define HASH_SIZE        13
-#define LAB2_SUCCESS    0
-#define LAB2_ERROR        -1
+#define LAB2_SUCCESS      0
+#define LAB2_ERROR       -1
 
 /*
  * If You need to more functions or vaiable
  * Declare functions or struct in lab2_sync_types.h
  */
+
+/* lock for common */
+pthread_mutex_t target_lock;
+
+/* lock for cg */
+pthread_mutex_t cg_queue_lock, cg_hashlist_lock;
+
+/* lock for fg */
+pthread_mutex_t fg_queue_front_lock, fg_queue_rear_lock, fg_hashlist_lock_list[HASH_SIZE];
 
 /* Variable that contains number of data */
 int target;
@@ -58,6 +66,9 @@ typedef struct hash_list {
 } hlist_node;
 
 hlist_node *hashlist[HASH_SIZE];
+
+/* Lab2 init mutex */
+void init_mutex(int lock_type);
 
 /* Lab2 Hash and Queue init functions */
 void init_queue();

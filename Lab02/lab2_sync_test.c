@@ -25,7 +25,6 @@
 #include <sys/stat.h>
 #include <assert.h>
 #include <pthread.h>
-//#include <asm/unistd.h>
 
 #include "lab2_sync_types.h"
 
@@ -159,6 +158,8 @@ void hq_test(int num_threads, int node_count, int lock_type) {
   thread_arg *th_arg;
   th_arg = (thread_arg *) malloc(sizeof(thread_arg));
 
+  init_mutex(lock_type);
+
   /*
    *  Multi Thread Insert and Delete Test No-lock
    */
@@ -167,7 +168,6 @@ void hq_test(int num_threads, int node_count, int lock_type) {
 	printf("\n");
 
 	init_hlist_node();
-	printf("success to init");
 	init_queue();
 
 	gettimeofday(&tv_insert_s, NULL);

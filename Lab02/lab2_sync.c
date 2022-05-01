@@ -1,8 +1,8 @@
 /*
 *   DKU Operating System Lab
 *           Lab2 (Hash Queue Lock Problem)
-*           Student id : 
-*           Student name : 
+*           Student id : 32203643
+*           Student name : 이학진
 *
 *   lab2_sync.c :
 *       - lab2 main file.
@@ -27,12 +27,30 @@
 #include <sys/stat.h>
 #include <assert.h>
 #include <pthread.h>
-//#include <asm/unistd.h>
 
 #include "lab2_sync_types.h"
 
-pthread_mutex_t front_lock, rear_lock, target_lock, hashlist_lock;
-pthread_mutex_t *hashlist_lock_list[HASH_SIZE];
+/**
+ * init mutex variables
+ *
+ * @param lock_type int             : 0(no lock), 1(cg lock), 2(fg lock)
+ * */
+void init_mutex(int lock_type) {
+  if (lock_type != 0) {
+	pthread_mutex_init(&target_lock, NULL);
+	if (lock_type == 1) {
+	  pthread_mutex_init(&cg_queue_lock, NULL);
+	  pthread_mutex_init(&cg_hashlist_lock, NULL);
+	} else if (lock_type == 2) {
+	  pthread_mutex_init(&fg_queue_front_lock, NULL);
+	  pthread_mutex_init(&fg_queue_rear_lock, NULL);
+	  pthread_mutex_init(&cg_hashlist_lock, NULL);
+	  for (int i = 0; i < HASH_SIZE; i++) {
+		pthread_mutex_init(&fg_hashlist_lock_list[i], NULL);
+	  }
+	}
+  }
+}
 
 /*
  *  Implement function which init queue nodes for front and rear
@@ -63,8 +81,7 @@ void enqueue(queue_node *new_node) {
  *  @param queue_node *new_node		: Node which you need to insert at queue in coarse-grained manner.
  */
 void enqueue_cg(queue_node *new_node) {
-  pthread_mutex_lock(&front_lock);
-  pthread_mutex_lock(&rear_lock);
+  pthread_mutex_lock(&cg_queue_lock);
   if (rear == NULL) {
 	front = rear = new_node;
   } else {
@@ -72,8 +89,7 @@ void enqueue_cg(queue_node *new_node) {
 	new_node->prev = rear;
 	rear = new_node;
   }
-  pthread_mutex_unlock(&rear_lock);
-  pthread_mutex_unlock(&front_lock);
+  pthread_mutex_unlock(&cg_queue_lock);
 }
 
 /*
@@ -82,17 +98,17 @@ void enqueue_cg(queue_node *new_node) {
  *  @param queue_node *new_node		: Node which you need to insert at queue in fine-grained manner.
  */
 void enqueue_fg(queue_node *new_node) {
-  pthread_mutex_lock(&rear_lock);
+  pthread_mutex_lock(&fg_queue_rear_lock);
   if (rear == NULL) {
-	pthread_mutex_lock(&front_lock);
+	pthread_mutex_lock(&fg_queue_front_lock);
 	front = rear = new_node;
-	pthread_mutex_unlock(&front_lock);
+	pthread_mutex_unlock(&fg_queue_front_lock);
   } else {
 	rear->next = new_node;
 	new_node->prev = rear;
 	rear = new_node;
   }
-  pthread_mutex_unlock(&rear_lock);
+  pthread_mutex_unlock(&fg_queue_rear_lock);
 }
 
 /*
@@ -101,14 +117,17 @@ void enqueue_fg(queue_node *new_node) {
  *  @param queue_node *del_node		: Node which you need to delete at queue.
  */
 void dequeue(queue_node *del_node) {
-  del_node = front;
-
-  if (front->next == NULL) {
-	front = rear = NULL;
+  if (del_node->next != NULL) {
+	del_node->next->prev = del_node->prev;
   } else {
-	front->next->prev = NULL;
-	front = front->next;
+	rear = del_node->prev;
   }
+
+  if (del_node->prev != NULL) {
+	del_node->prev->next = del_node->next;
+  } else {
+	front = del_node->next;
+  };
 }
 
 /*
@@ -117,18 +136,19 @@ void dequeue(queue_node *del_node) {
  *  @param queue_node *del_node		: Node which you need to delete at queue in coarse-grained manner.
  */
 void dequeue_cg(queue_node *del_node) {
-  pthread_mutex_lock(&front_lock);
-  pthread_mutex_lock(&rear_lock);
-  del_node = front;
-
-  if (front->next == NULL) {
-	front = rear = NULL;
+  pthread_mutex_lock(&cg_queue_lock);
+  if (del_node->next != NULL) {
+	del_node->next->prev = del_node->prev;
   } else {
-	front->next->prev = NULL;
-	front = front->next;
+	rear = del_node->prev;
   }
-  pthread_mutex_unlock(&rear_lock);
-  pthread_mutex_unlock(&front_lock);
+
+  if (del_node->prev != NULL) {
+	del_node->prev->next = del_node->next;
+  } else {
+	front = del_node->next;
+  };
+  pthread_mutex_unlock(&cg_queue_lock);
 }
 
 /*
@@ -137,18 +157,21 @@ void dequeue_cg(queue_node *del_node) {
  *  @param queue_node *del_node		: Node which you need to delete at queue in fine-grained manner.
  */
 void dequeue_fg(queue_node *del_node) {
-  pthread_mutex_lock(&front_lock);
-  del_node = front;
-
-  if (front->next == NULL) {
-	pthread_mutex_lock(&rear_lock);
-	front = rear = NULL;
-	pthread_mutex_unlock(&rear_lock);
+  if (del_node->next != NULL) {
+	del_node->next->prev = del_node->prev;
   } else {
-	front->next->prev = NULL;
-	front = front->next;
+	pthread_mutex_lock(&fg_queue_rear_lock);
+	rear = del_node->prev;
+	pthread_mutex_unlock(&fg_queue_rear_lock);
   }
-  pthread_mutex_unlock(&front_lock);
+
+  if (del_node->prev != NULL) {
+	del_node->prev->next = del_node->next;
+  } else {
+	pthread_mutex_lock(&fg_queue_front_lock);
+	front = del_node->next;
+	pthread_mutex_unlock(&fg_queue_front_lock);
+  };
 }
 
 /*
@@ -156,7 +179,9 @@ void dequeue_fg(queue_node *del_node) {
  */
 void init_hlist_node() {
   for (int i = 0; i < HASH_SIZE; i++) {
-	hashlist[i] = NULL;
+	hashlist[i] = malloc(sizeof(hlist_node));
+	hashlist[i]->next = NULL;
+	hashlist[i]->q_loc = NULL;
   }
 }
 
@@ -175,23 +200,21 @@ int hash(int val) {
  *  @param int val						: Data to be stored in the queue node
  */
 void hash_queue_add(hlist_node *hashtable, int val) {
-  queue_node new_node;
-  new_node.data = val;
+  queue_node *new_node = malloc(sizeof(queue_node));
+  new_node->data = val;
+  hlist_node *new_hash = malloc(sizeof(hlist_node));
+  new_hash->q_loc = new_node;
 
-  enqueue(&new_node);
+  enqueue(new_node);
 
-  hlist_node next_hash;
-  next_hash.q_loc = &new_node;
-  next_hash.next = NULL;
-
-  if (hashtable == NULL) {
-	hashtable = &next_hash;
+  if (hashtable->q_loc == NULL) {
+	hashtable->q_loc = new_node;
   } else {
 	hlist_node *table = hashtable;
 	while (table->next != NULL) {
 	  table = table->next;
 	}
-	table->next = &next_hash;
+	table->next = new_hash;
   }
 }
 
@@ -203,26 +226,24 @@ void hash_queue_add(hlist_node *hashtable, int val) {
  *  @param int val						: Data to be stored in the queue node
  */
 void hash_queue_add_cg(hlist_node *hashtable, int val) {
-  pthread_mutex_lock(&hashlist_lock);
-  queue_node new_node;
-  new_node.data = val;
+  queue_node *new_node = malloc(sizeof(queue_node));
+  new_node->data = val;
+  hlist_node *new_hash = malloc(sizeof(hlist_node));
+  new_hash->q_loc = new_node;
 
-  enqueue_cg(&new_node);
+  pthread_mutex_lock(&cg_hashlist_lock);
+  enqueue_cg(new_node);
 
-  hlist_node next_hash;
-  next_hash.q_loc = &new_node;
-  next_hash.next = NULL;
-
-  if (hashtable == NULL) {
-	hashtable = &next_hash;
+  if (hashtable->q_loc == NULL) {
+	hashtable->q_loc = new_node;
   } else {
 	hlist_node *table = hashtable;
 	while (table->next != NULL) {
 	  table = table->next;
 	}
-	table->next = &next_hash;
+	table->next = new_hash;
   }
-  pthread_mutex_unlock(&hashlist_lock);
+  pthread_mutex_unlock(&cg_hashlist_lock);
 }
 
 /*
@@ -233,26 +254,24 @@ void hash_queue_add_cg(hlist_node *hashtable, int val) {
  *  @param int val						: Data to be stored in the queue node
  */
 void hash_queue_add_fg(hlist_node *hashtable, int val) {
-  queue_node new_node;
-  new_node.data = val;
+  queue_node *new_node = malloc(sizeof(queue_node));
+  new_node->data = val;
+  hlist_node *new_hash = malloc(sizeof(hlist_node));
+  new_hash->q_loc = new_node;
 
-  enqueue_fg(&new_node);
+  enqueue_fg(new_node);
 
-  hlist_node next_hash;
-  next_hash.q_loc = &new_node;
-  next_hash.next = NULL;
-
-  pthread_mutex_lock(hashlist_lock_list[hash(val)]);
-  if (hashtable == NULL) {
-	hashtable = &next_hash;
+  pthread_mutex_lock(&fg_hashlist_lock_list[hash(val)]);
+  if (hashtable->q_loc == NULL) {
+	hashtable->q_loc = new_node;
   } else {
 	hlist_node *table = hashtable;
 	while (table->next != NULL) {
 	  table = table->next;
 	}
-	table->next = &next_hash;
+	table->next = new_hash;
   }
-  pthread_mutex_unlock(hashlist_lock_list[hash(val)]);
+  pthread_mutex_unlock(&fg_hashlist_lock_list[hash(val)]);
 }
 
 /*
@@ -262,14 +281,14 @@ void hash_queue_add_fg(hlist_node *hashtable, int val) {
  *  @return								: status (success or fail)
  */
 int value_exist(int val) {
-  int hash_value = hash(val);
+  hlist_node *table = hashlist[hash(val)];
+  if (!table) return 0;
 
-  hlist_node *table = hashlist[hash_value];
-  while (table->q_loc->data != val && table->next != NULL) {
+  while (1) {
+	if (table->q_loc->data == val) return 1;
+	if (table->next == NULL) return 0;
 	table = table->next;
   }
-
-  return table->q_loc->data == val;
 }
 
 /*
@@ -284,10 +303,13 @@ void hash_queue_insert_by_target() {
  */
 void hash_queue_insert_by_target_cg() {
   pthread_mutex_lock(&target_lock);
-  pthread_mutex_lock(&hashlist_lock);
-  hash_queue_add_cg(hashlist[hash(target)], target);
-  pthread_mutex_unlock(&hashlist_lock);
+  pthread_mutex_lock(&cg_hashlist_lock);
+  int _target = target;
+  hlist_node *_hashtable = hashlist[hash(_target)];
   pthread_mutex_unlock(&target_lock);
+  pthread_mutex_unlock(&cg_hashlist_lock);
+
+  hash_queue_add_cg(_hashtable, _target);
 }
 
 /*
@@ -295,10 +317,14 @@ void hash_queue_insert_by_target_cg() {
  */
 void hash_queue_insert_by_target_fg() {
   pthread_mutex_lock(&target_lock);
-  pthread_mutex_lock(hashlist_lock_list[hash(target)]);
-  hash_queue_add_fg(hashlist[hash(target)], target);
-  pthread_mutex_unlock(hashlist_lock_list[hash(target)]);
+  int _target = target;
   pthread_mutex_unlock(&target_lock);
+
+  pthread_mutex_lock(&fg_hashlist_lock_list[hash(_target)]);
+  hlist_node *_hashtable = hashlist[hash(_target)];
+  pthread_mutex_unlock(&fg_hashlist_lock_list[hash(_target)]);
+
+  hash_queue_add_fg(_hashtable, _target);
 }
 
 /*
@@ -306,21 +332,21 @@ void hash_queue_insert_by_target_fg() {
  *  using target and delete node that contains target
  */
 void hash_queue_delete_by_target() {
-  int is_exist = value_exist(target);
-
-  if (is_exist) {
-	queue_node delete_node;
-	do {
-	  dequeue(&delete_node);
-	  delete_node = *delete_node.next;
-	} while (delete_node.data != target);
-	dequeue(&delete_node);
-
-	hlist_node *hashtable = hashlist[hash(target)];
-	while (hashtable->q_loc->data != target) {
-	  hashtable = hashtable->next;
+  if (value_exist(target)) {
+	hlist_node *table = hashlist[hash(target)];
+	if (table->next == NULL) {
+	  table->q_loc = NULL;
+	} else {
+	  while (table->next != NULL) {
+		if (table->next->q_loc->data == target) {
+		  queue_node *delete_node = table->next->q_loc;
+		  table->next = table->next->next;
+		  dequeue(delete_node);
+		  break;
+		}
+		table = table->next;
+	  }
 	}
-	hashtable = hashtable->next;
   }
 }
 
@@ -330,25 +356,27 @@ void hash_queue_delete_by_target() {
  */
 void hash_queue_delete_by_target_cg() {
   pthread_mutex_lock(&target_lock);
-  pthread_mutex_lock(&hashlist_lock);
-  int is_exist = value_exist(target);
-
-  if (is_exist) {
-	queue_node delete_node;
-	do {
-	  dequeue_cg(&delete_node);
-	  delete_node = *delete_node.next;
-	} while (delete_node.data != target);
-	dequeue_cg(&delete_node);
-
-	hlist_node *hashtable = hashlist[hash(target)];
-	while (hashtable->q_loc->data != target) {
-	  hashtable = hashtable->next;
-	}
-	hashtable = hashtable->next;
-  }
-  pthread_mutex_unlock(&hashlist_lock);
+  int _target = target;
   pthread_mutex_unlock(&target_lock);
+
+  pthread_mutex_lock(&cg_hashlist_lock);
+  if (value_exist(_target)) {
+	hlist_node *table = hashlist[hash(_target)];
+	if (table->next == NULL) {
+	  table->q_loc = NULL;
+	} else {
+	  while (table->next != NULL) {
+		if (table->next->q_loc->data == _target) {
+		  queue_node *delete_node = table->next->q_loc;
+		  table->next = table->next->next;
+		  dequeue_cg(delete_node);
+		  break;
+		}
+		table = table->next;
+	  }
+	}
+  }
+  pthread_mutex_unlock(&cg_hashlist_lock);
 }
 
 /*
@@ -357,24 +385,26 @@ void hash_queue_delete_by_target_cg() {
  */
 void hash_queue_delete_by_target_fg() {
   pthread_mutex_lock(&target_lock);
-  int is_exist = value_exist(target);
-
-  if (is_exist) {
-	queue_node delete_node;
-	do {
-	  dequeue_cg(&delete_node);
-	  delete_node = *delete_node.next;
-	} while (delete_node.data != target);
-	dequeue_cg(&delete_node);
-
-	pthread_mutex_lock(hashlist_lock_list[hash(target)]);
-	hlist_node *hashtable = hashlist[hash(target)];
-	while (hashtable->q_loc->data != target) {
-	  hashtable = hashtable->next;
-	}
-	hashtable = hashtable->next;
-	pthread_mutex_unlock(hashlist_lock_list[hash(target)]);
-  }
+  int _target = target;
   pthread_mutex_unlock(&target_lock);
+
+  pthread_mutex_lock(&fg_hashlist_lock_list[hash(_target)]);
+  if (value_exist(_target)) {
+	hlist_node *table = hashlist[hash(_target)];
+	if (table->next == NULL) {
+	  table->q_loc = NULL;
+	} else {
+	  while (table->next != NULL) {
+		if (table->next->q_loc->data == _target) {
+		  queue_node *delete_node = table->next->q_loc;
+		  table->next = table->next->next;
+		  dequeue_fg(delete_node);
+		  break;
+		}
+		table = table->next;
+	  }
+	}
+  }
+  pthread_mutex_unlock(&fg_hashlist_lock_list[hash(_target)]);
 }
 
